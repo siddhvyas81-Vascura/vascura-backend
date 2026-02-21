@@ -1,19 +1,24 @@
 const express = require("express");
 const cors = require("cors");
+const OpenAI = require("openai");
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Root route (browser test ke liye)
-app.get("/", (req, res) => {
-  res.send("VASCURA Backend Running Successfully 🚀");
+// OpenAI Config
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Diagnosis route (MOCK AI - No OpenAI)
+// Root
+app.get("/", (req, res) => {
+  res.send("VASCURA AI Backend Live 🚀");
+});
+
+// Diagnosis Route (REAL AI)
 app.post("/diagnosis", async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -25,28 +30,33 @@ app.post("/diagnosis", async (req, res) => {
       });
     }
 
-    // Fake AI response
-    const fakeResponse = `
-Based on your symptoms: "${prompt}"
+    const aiResponse = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a medical AI assistant. Provide safe, helpful, structured medical advice. Do not provide prescriptions. Always suggest consulting a doctor if serious symptoms exist.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.7,
+    });
 
-• Stay hydrated
-• Take proper rest
-• Monitor your temperature
-• Take paracetamol if fever is high
-• If symptoms last more than 2 days, consult a doctor
-
-(This is a demo AI response - OpenAI temporarily disabled)
-`;
+    const diagnosis = aiResponse.choices[0].message.content;
 
     res.status(200).json({
       success: true,
-      diagnosis: fakeResponse,
+      diagnosis: diagnosis,
     });
-
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       success: false,
-      error: "Something went wrong",
+      error: "AI service failed",
     });
   }
 });
